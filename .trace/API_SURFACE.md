@@ -1,8 +1,7 @@
-# API_SURFACE.md — Multica API 與介面參考文件
+# API_SURFACE.md — Multica API 與介面參考文件（Part 1/2）
 
-> 資料截止：2026-05-05  
-> Backend：Go 1.26.1 + Chi v5.2.5  
-> Base URL：`https://api.multica.ai`（self-hosted 可自訂）
+> 資料截止：2026-05-05 | Backend：Go 1.26.1 + Chi v5.2.5 | Base URL：`https://api.multica.ai`  
+> 續見 [API_SURFACE_part2.md](./API_SURFACE_part2.md)
 
 ---
 
@@ -10,10 +9,7 @@
 
 1. [認證與授權](#1-認證與授權)
 2. [REST API 概覽](#2-rest-api-概覽)
-3. [關鍵 API 詳情](#3-關鍵-api-詳情)
-4. [WebSocket 協議](#4-websocket-協議)
-5. [Daemon API](#5-daemon-api)
-6. [Error Handling](#6-error-handling)
+3. [關鍵 API 詳情（前半）](#3-關鍵-api-詳情前半)
 
 ---
 
@@ -64,30 +60,29 @@ sequenceDiagram
 
     Note over C,S: PAT / Daemon Token 驗證
     C->>S: GET /api/me (Authorization: Bearer mul_xxx)
-    S->>S: hash token → lookup PATCache → DB fallback
+    S->>S: hash token → PATCache → DB fallback
     S-->>C: 200 UserResponse
 ```
 
 ### 1.3 Workspace Middleware
 
-所有 workspace 範疇的 API 需要透過以下任一方式提供 workspace 識別：
+所有 workspace 範疇的 API 需在 request header 提供 workspace 識別：
 
 | Header | 說明 |
 |--------|------|
 | `X-Workspace-ID` | Workspace UUID（優先） |
-| `X-Workspace-Slug` | Workspace slug（server 自動解析為 UUID） |
+| `X-Workspace-Slug` | Workspace slug（server 自動解析） |
 
-`middleware.RequireWorkspaceMember` 驗證：
+`middleware.RequireWorkspaceMember` 驗證流程：
 1. 解析 workspace ID/slug → UUID
 2. 確認 user 為該 workspace 的 member
 3. 將 `member` 物件注入 request context
 
-Admin 操作（`PUT /api/workspaces/{id}`）要求 role 為 `owner` 或 `admin`。  
-刪除 workspace 僅 `owner` 可執行。
+Admin 操作需 role 為 `owner` 或 `admin`；刪除 workspace 僅 `owner` 可執行。
 
 ### 1.4 Agent 身份代理
 
-Agent 執行任務時可在 request header 宣告身份：
+Agent 執行任務時可在 request header 宣告身份（選用）：
 
 | Header | 說明 |
 |--------|------|
@@ -106,7 +101,6 @@ Agent 執行任務時可在 request header 宣告身份：
 |--------|------|------|
 | `GET` | `/health` | Liveness check |
 | `GET` | `/readyz` | Readiness check |
-| `GET` | `/healthz` | Readiness check（別名） |
 | `GET` | `/health/realtime` | Realtime WS 指標（可設 Bearer token 保護） |
 | `GET` | `/ws` | WebSocket 連線升級端點 |
 | `POST` | `/auth/send-code` | 發送 email OTP |
@@ -151,7 +145,7 @@ Agent 執行任務時可在 request header 宣告身份：
 | `GET` | `/api/issues/search` | 搜尋 issues |
 | `POST` | `/api/issues/batch-update` | 批次更新 issues |
 | `POST` | `/api/issues/batch-delete` | 批次刪除 issues |
-| `GET` | `/api/issues/{id}` | 取得單一 issue（支援 UUID 或 `PREFIX-NUMBER` 格式） |
+| `GET` | `/api/issues/{id}` | 取得單一 issue（支援 UUID 或 `PREFIX-NUMBER`） |
 | `PUT` | `/api/issues/{id}` | 更新 issue |
 | `DELETE` | `/api/issues/{id}` | 刪除 issue |
 | `GET` | `/api/issues/{id}/comments` | 列出評論 |
@@ -162,7 +156,6 @@ Agent 執行任務時可在 request header 宣告身份：
 | `POST` | `/api/issues/{id}/rerun` | 重新執行 |
 | `GET` | `/api/issues/{id}/task-runs` | 列出歷史任務 |
 | `GET` | `/api/issues/{id}/usage` | 取得 token 用量 |
-| `POST` | `/api/issues/{id}/reactions` | 新增 reaction |
 | `GET` | `/api/issues/{id}/children` | 列出子 issue |
 | `POST` | `/api/issues/{id}/labels` | 附加 label |
 | `DELETE` | `/api/issues/{id}/labels/{labelId}` | 移除 label |
@@ -177,9 +170,8 @@ Agent 執行任務時可在 request header 宣告身份：
 | `PUT` | `/api/agents/{id}` | 更新 agent |
 | `POST` | `/api/agents/{id}/archive` | 封存 agent |
 | `POST` | `/api/agents/{id}/restore` | 還原 agent |
-| `POST` | `/api/agents/{id}/cancel-tasks` | 取消 agent 所有任務 |
+| `POST` | `/api/agents/{id}/cancel-tasks` | 取消所有任務 |
 | `GET` | `/api/agents/{id}/tasks` | 列出 agent 任務 |
-| `GET` | `/api/agents/{id}/skills` | 列出 agent 技能 |
 | `PUT` | `/api/agents/{id}/skills` | 設定 agent 技能清單 |
 
 #### 其他資源
@@ -198,24 +190,20 @@ Agent 執行任務時可在 request header 宣告身份：
 | `GET` | `/api/runtimes` | 列出 agent runtimes |
 | `GET` | `/api/usage/daily` | 每日用量 |
 | `GET` | `/api/usage/summary` | 用量摘要 |
-| `GET` | `/api/agent-task-snapshot` | Workspace agent 任務快照（Presence 用） |
+| `GET` | `/api/agent-task-snapshot` | Workspace agent 任務快照 |
 
 ---
 
-## 3. 關鍵 API 詳情
+## 3. 關鍵 API 詳情（前半）
 
 ### 3.1 POST /auth/send-code
-
-發送 email 驗證碼（OTP 登入第一步）。
 
 **Request**
 ```json
 POST /auth/send-code
 Content-Type: application/json
 
-{
-  "email": "user@example.com"
-}
+{ "email": "user@example.com" }
 ```
 
 **Response** `200 OK`
@@ -223,21 +211,16 @@ Content-Type: application/json
 { "message": "code sent" }
 ```
 
-**備註：**
-- 若 `ALLOW_SIGNUP=false` 且 email 非已知用戶，返回 `403 Forbidden`
-- 若 `RESEND_API_KEY` 未設定，驗證碼印到 server log（開發模式）
-- 開發可設 `MULTICA_DEV_VERIFICATION_CODE=123456` 跳過 email
+備註：`ALLOW_SIGNUP=false` 且 email 非已知用戶時返回 `403`。  
+開發可設 `MULTICA_DEV_VERIFICATION_CODE=123456` 跳過 email 發送。
 
 ---
 
 ### 3.2 POST /api/issues
 
-建立新 issue。需要 `X-Workspace-ID` header。
-
 **Request**
 ```json
 POST /api/issues
-Authorization: Bearer mul_<token>
 X-Workspace-ID: <workspace-uuid>
 Content-Type: application/json
 
@@ -248,14 +231,13 @@ Content-Type: application/json
   "priority": "high",
   "assignee_type": "agent",
   "assignee_id": "<agent-uuid>",
-  "parent_issue_id": null,
   "project_id": "<project-uuid>",
-  "due_date": "2026-06-01T00:00:00Z",
-  "attachment_ids": ["<attachment-uuid>"]
+  "due_date": "2026-06-01T00:00:00Z"
 }
 ```
 
-**Response** `201 Created`
+**Response** `201 Created` — `IssueResponse`：
+
 ```json
 {
   "id": "<uuid>",
@@ -279,17 +261,13 @@ Content-Type: application/json
 }
 ```
 
-**欄位說明：**
-- `status`：`todo` | `in_progress` | `done` | `cancelled`（預設 `todo`）
-- `priority`：`none` | `low` | `medium` | `high` | `urgent`（預設 `none`）
-- `assignee_type`：`member` | `agent`（搭配 `assignee_id`）
-- `identifier`：自動生成，格式為 `{workspace_prefix}-{number}`
+`status` 預設 `todo`；`priority` 預設 `none`。`identifier` 格式為 `{workspace_prefix}-{number}`，自動生成。
 
 ---
 
 ### 3.3 PUT /api/issues/{id}
 
-更新 issue。`{id}` 接受 UUID 或 `PREFIX-NUMBER` 格式（如 `MUL-42`）。
+`{id}` 接受 UUID 或 `PREFIX-NUMBER` 格式（如 `MUL-42`）。
 
 **Request**
 ```json
@@ -306,299 +284,6 @@ Content-Type: application/json
 }
 ```
 
-**Response** `200 OK` — 同 `IssueResponse`（不含 `labels` 欄位，客戶端保留快取中的 labels）
+**Response** `200 OK` — `IssueResponse`（不含 `labels` 欄位；客戶端保留快取中的 labels）
 
----
-
-### 3.4 POST /api/daemon/runtimes/{runtimeId}/tasks/claim
-
-Daemon 認領下一個可執行任務（原子操作）。
-
-**Auth：** `Authorization: Bearer mdt_<token>`（Daemon Token）
-
-**Request**
-```json
-POST /api/daemon/runtimes/<runtime-uuid>/tasks/claim
-Authorization: Bearer mdt_<token>
-Content-Type: application/json
-
-{}
-```
-
-**Response** `200 OK`（有任務）
-```json
-{
-  "task": {
-    "id": "<task-uuid>",
-    "issue_id": "<issue-uuid>",
-    "agent_id": "<agent-uuid>",
-    "runtime_id": "<runtime-uuid>",
-    "status": "dispatched",
-    "type": "issue",
-    "prompt": "<task prompt>",
-    "skills": ["<skill content>"],
-    "repos": [{ "url": "https://github.com/org/repo" }],
-    "session_id": "<previous-claude-session-id>",
-    "created_at": "2026-05-05T10:00:00Z"
-  }
-}
-```
-
-**Response** `200 OK`（無任務）
-```json
-{ "task": null }
-```
-
----
-
-### 3.5 POST /api/chat/sessions/{id}/messages
-
-向 Chat Session 發送訊息並觸發 agent 任務。
-
-**Request**
-```json
-POST /api/chat/sessions/<session-uuid>/messages
-X-Workspace-ID: <workspace-uuid>
-Content-Type: application/json
-
-{
-  "content": "請幫我分析這段程式碼的效能瓶頸"
-}
-```
-
-**Response** `201 Created`
-```json
-{
-  "message_id": "<message-uuid>",
-  "task_id": "<task-uuid>",
-  "created_at": "2026-05-05T10:00:00Z"
-}
-```
-
-**後續流程：** Client 透過 WebSocket 訂閱 `chat:message`、`task:progress`、`chat:done` 事件接收 agent 回應。
-
----
-
-## 4. WebSocket 協議
-
-### 4.1 連線
-
-```
-GET /ws
-Upgrade: websocket
-
-# Cookie Auth（前端）
-Cookie: token=<jwt>
-
-# PAT Auth（CLI / 程式）
-Authorization: Bearer mul_<token>
-
-# Workspace 過濾（可選）
-# Query param: ?workspace_id=<uuid> 或 ?workspace_slug=<slug>
-```
-
-伺服器驗證 Origin 是否在 `CORS_ALLOWED_ORIGINS` 白名單內。
-
-### 4.2 事件列表
-
-所有事件格式為 `{ "type": "<event>", "payload": <object> }`。
-
-#### Issue 事件
-
-| 事件 | 觸發時機 | Payload 重點 |
-|------|---------|-------------|
-| `issue:created` | 新 issue 建立 | 完整 `IssueResponse` |
-| `issue:updated` | issue 欄位更新 | 部分更新的 `IssueResponse`（不含 labels） |
-| `issue:deleted` | issue 刪除 | `{ id }` |
-| `issue_labels:changed` | labels 附加/移除 | `{ issue_id, labels[] }` |
-
-#### Task 事件
-
-| 事件 | 觸發時機 | 說明 |
-|------|---------|------|
-| `task:queued` | 任務入隊 | `∅ → queued` 狀態轉換 |
-| `task:dispatch` | Daemon 認領任務 | `queued → dispatched` |
-| `task:progress` | Agent 回報進度 | `{ summary, step, total }` |
-| `task:message` | Agent 發送訊息片段 | streaming 訊息內容 |
-| `task:completed` | 任務完成 | `running → completed`，含 PR URL |
-| `task:failed` | 任務失敗 | `running → failed`，含錯誤訊息 |
-| `task:cancelled` | 任務取消 | 任意狀態 → cancelled |
-
-#### Chat 事件
-
-| 事件 | 觸發時機 |
-|------|---------|
-| `chat:message` | Agent 回應訊息（streaming） |
-| `chat:done` | Chat session 回應完成 |
-| `chat:session_read` | 用戶標記 session 已讀 |
-
-#### Inbox 事件
-
-| 事件 | 觸發時機 |
-|------|---------|
-| `inbox:new` | 新收件匣項目 |
-| `inbox:read` | 單項目標為已讀 |
-| `inbox:archived` | 單項目封存 |
-| `inbox:batch-read` | 批次已讀 |
-| `inbox:batch-archived` | 批次封存 |
-
-#### Agent / Runtime 事件
-
-| 事件 | 觸發時機 |
-|------|---------|
-| `agent:status` | Agent 狀態變更 |
-| `agent:created` | 新 agent 建立 |
-| `agent:archived` | Agent 封存 |
-| `agent:restored` | Agent 還原 |
-
-#### Daemon 事件（Daemon WS 專用）
-
-| 事件 | 觸發時機 |
-|------|---------|
-| `daemon:register` | Daemon 完成註冊 |
-| `daemon:heartbeat` | Daemon 傳送心跳 |
-| `daemon:heartbeat_ack` | Server 確認心跳 |
-| `daemon:task_available` | 有新任務可認領（wakeup） |
-
-#### 其他事件
-
-| 事件 | 觸發時機 |
-|------|---------|
-| `comment:created/updated/deleted` | 評論 CRUD |
-| `reaction:added/removed` | 評論 reaction |
-| `issue_reaction:added/removed` | Issue reaction |
-| `workspace:updated/deleted` | Workspace 變更 |
-| `member:added/updated/removed` | 成員異動 |
-| `skill:created/updated/deleted` | Skill CRUD |
-| `project:created/updated/deleted` | Project CRUD |
-| `label:created/updated/deleted` | Label CRUD |
-| `autopilot:created/updated/deleted` | Autopilot CRUD |
-| `autopilot:run_start/run_done` | Autopilot 執行 |
-| `invitation:created/accepted/declined/revoked` | 邀請事件 |
-| `pin:created/deleted/reordered` | Pin 事件 |
-| `activity:created` | Activity log |
-
----
-
-## 5. Daemon API
-
-Daemon API 使用 `mdt_` prefix 的 Daemon Token 或有效的 User JWT / PAT 認證（fallback）。  
-所有路由前綴：`/api/daemon/`
-
-### 5.1 Daemon 生命週期
-
-| Method | Path | 說明 |
-|--------|------|------|
-| `POST` | `/api/daemon/register` | 向 server 註冊 daemon 及其 runtimes |
-| `POST` | `/api/daemon/deregister` | 取消註冊 |
-| `POST` | `/api/daemon/heartbeat` | 定期心跳（預設每 15 秒），含任務 claim 邏輯 |
-| `GET` | `/api/daemon/ws` | Daemon 專用 WebSocket（接收 wakeup 通知） |
-
-**DaemonRegisterRequest：**
-```json
-{
-  "workspace_id": "<workspace-uuid>",
-  "daemon_id": "<persistent-uuid>",
-  "device_name": "MacBook-Pro",
-  "cli_version": "0.2.0",
-  "launched_by": "desktop",
-  "runtimes": [
-    { "name": "claude-code", "type": "claude", "version": "1.2.3", "status": "online" }
-  ]
-}
-```
-
-### 5.2 任務執行生命週期
-
-| Method | Path | 說明 |
-|--------|------|------|
-| `POST` | `/api/daemon/runtimes/{runtimeId}/tasks/claim` | 原子認領任務 |
-| `GET` | `/api/daemon/runtimes/{runtimeId}/tasks/pending` | 查詢 pending 任務清單 |
-| `GET` | `/api/daemon/tasks/{taskId}/status` | 取得任務狀態 |
-| `POST` | `/api/daemon/tasks/{taskId}/start` | 標記任務開始執行 |
-| `POST` | `/api/daemon/tasks/{taskId}/progress` | 回報執行進度 |
-| `POST` | `/api/daemon/tasks/{taskId}/complete` | 回報完成（含 PR URL、output） |
-| `POST` | `/api/daemon/tasks/{taskId}/fail` | 回報失敗（含錯誤訊息） |
-| `POST` | `/api/daemon/tasks/{taskId}/messages` | 回報任務訊息（streaming 片段） |
-| `GET` | `/api/daemon/tasks/{taskId}/messages` | 列出任務訊息 |
-| `POST` | `/api/daemon/tasks/{taskId}/usage` | 回報 token 用量 |
-| `POST` | `/api/daemon/tasks/{taskId}/session` | 記錄 Claude session ID（供下次 resume） |
-| `POST` | `/api/daemon/runtimes/{runtimeId}/recover-orphans` | 重新領取遺棄的任務 |
-
-**TaskProgressRequest：**
-```json
-{
-  "summary": "Running tests...",
-  "step": 3,
-  "total": 5
-}
-```
-
-**TaskCompleteRequest：**
-```json
-{
-  "pr_url": "https://github.com/org/repo/pull/123",
-  "output": "All tests pass. Created PR #123.",
-  "session_id": "<claude-session-uuid>",
-  "work_dir": "/home/user/.multica/workspaces/repo"
-}
-```
-
-### 5.3 Runtime 管理（User 側）
-
-| Method | Path | 說明 |
-|--------|------|------|
-| `GET` | `/api/runtimes` | 列出 workspace 的所有 runtimes |
-| `DELETE` | `/api/runtimes/{runtimeId}` | 刪除 runtime 記錄 |
-| `POST` | `/api/runtimes/{runtimeId}/update` | 觸發 CLI 更新請求 |
-| `POST` | `/api/runtimes/{runtimeId}/models` | 請求 runtime 列出可用 AI models |
-| `POST` | `/api/runtimes/{runtimeId}/local-skills` | 請求 runtime 列出本地 skills |
-| `GET` | `/api/runtimes/{runtimeId}/usage` | 取得 runtime 用量統計 |
-| `GET` | `/api/runtimes/{runtimeId}/activity` | 取得 runtime 任務活動記錄 |
-
----
-
-## 6. Error Handling
-
-### 6.1 Error Response 格式
-
-所有錯誤均返回 JSON：
-
-```json
-{
-  "error": "human-readable error message"
-}
-```
-
-`Content-Type: application/json`
-
-### 6.2 常見 HTTP 狀態碼
-
-| 狀態碼 | 情境 |
-|--------|------|
-| `400 Bad Request` | 請求格式錯誤、必填欄位缺失、UUID 格式無效 |
-| `401 Unauthorized` | 未提供 token 或 token 無效/過期 |
-| `403 Forbidden` | 已認證但無權限（如非 admin 執行 admin 操作） |
-| `404 Not Found` | 資源不存在或不屬於當前 workspace |
-| `409 Conflict` | 唯一性衝突（如 workspace slug 重複） |
-| `500 Internal Server Error` | Server 內部錯誤（DB 故障等） |
-| `503 Service Unavailable` | 第三方服務未設定（如 Google OAuth 未配置） |
-
-### 6.3 UUID 驗證規則
-
-後端 handler 嚴格區分兩種 UUID 解析方式（參見 Issue #1661 修復）：
-
-- **來自用戶輸入的 UUID**（URL 參數、request body）→ 使用 `parseUUIDOrBadRequest`，無效時返回 `400`
-- **來自 DB 的 UUID round-trip** → 使用 `parseUUID`（panic on invalid，由 `middleware.Recoverer` 轉為 `500`）
-
-### 6.4 Issue ID 解析
-
-`GET/PUT/DELETE /api/issues/{id}` 的 `{id}` 支援兩種格式：
-
-1. **UUID**：標準 UUID 格式
-2. **Identifier**：`PREFIX-NUMBER` 格式（如 `MUL-42`）— server 自動解析
-
----
-
-*最後更新：2026-05-05*  
-*來源：`server/cmd/server/router.go`、`server/pkg/protocol/events.go`、`server/internal/handler/`*
+*續見 [API_SURFACE_part2.md](./API_SURFACE_part2.md)*

@@ -81,7 +81,8 @@ multica login         # 瀏覽器 OAuth 登入
 | [INDEX.md](INDEX.md) | 本文件：專案總覽與速查 |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 系統架構、元件關係、設計決策 |
 | [DATA_MODEL.md](DATA_MODEL.md) | 資料模型、ER 圖、狀態機 |
-| [API_SURFACE.md](API_SURFACE.md) | REST API、WebSocket 事件、daemon API |
+| [API_SURFACE.md](API_SURFACE.md) | REST API 概覽、認證授權、關鍵 endpoint 詳情 |
+| [API_SURFACE_part2.md](API_SURFACE_part2.md) | WebSocket 事件（47 個）、Daemon API、Error Handling |
 | [DEV_GUIDE.md](DEV_GUIDE.md) | 開發者上手指南 |
 | [CODEBASE_MAP.md](CODEBASE_MAP.md) | 程式碼地圖、目錄說明 |
 | [DISCOVERY_LOG.md](DISCOVERY_LOG.md) | 探索紀錄、技術債、待解問題 |

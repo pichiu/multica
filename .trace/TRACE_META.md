@@ -18,6 +18,7 @@
 | ARCHITECTURE.md | daf0e93 | 2026-05-05 |
 | DATA_MODEL.md | daf0e93 | 2026-05-05 |
 | API_SURFACE.md | daf0e93 | 2026-05-05 |
+| API_SURFACE_part2.md | daf0e93 | 2026-05-05 |
 | DEV_GUIDE.md | daf0e93 | 2026-05-05 |
 | CODEBASE_MAP.md | daf0e93 | 2026-05-05 |
 | DISCOVERY_LOG.md | daf0e93 | 2026-05-05 |

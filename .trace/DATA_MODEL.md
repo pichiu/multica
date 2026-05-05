@@ -110,12 +110,12 @@
 | `first_executed_at` | TIMESTAMPTZ | 首次執行時間（`050_issue_first_executed_at`）|
 
 #### `issue_label` / `issue_to_label`（`001_init.up.sql`）
-多對多關聯。`issue_label` 含 `name`、`color`；`issue_to_label` 為 junction table。
+多對多關聯。`issue_label` 含 `name`、`color`；`issue_to_label` 為 junction table。`label_timestamps`（`059`）加入時間戳記。
 
 #### `issue_dependency`（`001_init.up.sql`）
 欄位：`issue_id`、`depends_on_issue_id`、`type`（`blocks`/`blocked_by`/`related`）
 
-#### `issue_subscriber`（`015_issue_subscriber.up.sql`）
+#### `issue_subscriber`（`015`）
 追蹤誰訂閱了哪個 issue 的通知。含 `subscriber_type`（`member`/`agent`）、`subscriber_id`。
 
 ---
@@ -203,16 +203,16 @@ Agent-Skill 多對多 junction table。
 ### 1.7 協作與對話
 
 #### `comment`（`001_init.up.sql`）
-欄位：`issue_id`、`workspace_id`、`author_type`（`member`/`agent`）、`author_id`、`content`、`type`（`comment`/`status_change`/`progress_update`/`system`）、`parent_id`（`017`，用於 thread）。
+欄位：`issue_id`、`workspace_id`（`025`）、`author_type`（`member`/`agent`）、`author_id`、`content`、`type`（`comment`/`status_change`/`progress_update`/`system`）、`parent_id`（`017`，thread 支援）。
 
 #### `comment_reaction` / `issue_reaction`（`026`/`027`）
 Emoji reaction，多型態（`reactor_type`/`reactor_id`）。
 
 #### `chat_session`（`033_chat.up.sql`）
-用戶與 Agent 的持久化對話。含 `agent_id`、`creator_id`、`session_id`（AI CLI session）、`work_dir`、`status`（`active`/`archived`）、`unread_since`（`040`）、`runtime_id`（`060`）。
+用戶與 Agent 的持久化對話。欄位：`agent_id`、`creator_id`、`session_id`（AI CLI session）、`work_dir`、`status`（`active`/`archived`）、`unread_since`（`040`）、`runtime_id`（`060`）。
 
 #### `chat_message`（`033_chat.up.sql`）
-對話訊息。含 `chat_session_id`、`role`（`user`/`assistant`）、`content`、`task_id`、`failure_reason`（`062`）、`elapsed_ms`（`063`）。
+對話訊息：`chat_session_id`、`role`（`user`/`assistant`）、`content`、`task_id`、`failure_reason`（`062`）、`elapsed_ms`（`063`）。
 
 ---
 

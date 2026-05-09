@@ -469,6 +469,40 @@ docker compose exec -T postgres psql -U multica -d postgres \
 
 ---
 
+## 8. i18n 開發指南
+
+### 翻譯資源架構
+
+```
+packages/core/i18n/          # i18n 核心模組（語言切換、user preference sync）
+packages/views/i18n/         # Views 層整合（useT hook）
+packages/views/locales/
+├── en/                      # 21 個英文 namespace JSON 檔
+│   ├── common.json
+│   ├── issues.json
+│   └── ...
+└── zh-Hans/                 # 21 個簡體中文 namespace JSON 檔
+```
+
+### 新增翻譯字串
+
+1. 在對應 namespace 的 JSON 檔中新增 key：
+   ```bash
+   # 例如在 issues namespace 新增
+   packages/views/locales/en/issues.json   # 新增英文
+   packages/views/locales/zh-Hans/issues.json  # 新增中文
+   ```
+2. 在元件中使用 `useT('issues')` hook 取得翻譯函式
+3. `pnpm typecheck` 確認 key 型別正確
+
+### 語言設定
+
+- 用戶語言偏好存於 `user.language` DB 欄位（migration 060）
+- 瀏覽器 cookie 同步語言（`packages/core/i18n/browser-cookie-adapter.ts`）
+- `user-locale-sync.tsx` 在登入後同步 DB 偏好至瀏覽器
+
+---
+
 ## 快速參考
 
 ```bash

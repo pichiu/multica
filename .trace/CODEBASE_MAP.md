@@ -9,7 +9,8 @@ multica/
 │   ├── cmd/
 │   │   ├── server/                  # API Server 進入點
 │   │   │   ├── main.go             # 啟動序列（DB→Redis→WS Hub→Router→HTTP）
-│   │   │   └── router.go           # Chi router + 全部路由定義
+│   │   │   ├── router.go           # Chi router + 全部路由定義
+│   │   │   └── autopilot_failure_monitor.go  # Autopilot 高失敗率自動暫停監控器
 │   │   ├── multica/                 # CLI + Daemon 進入點
 │   │   │   └── main.go             # Cobra CLI 根命令
 │   │   └── migrate/                 # DB migration 工具
@@ -25,6 +26,9 @@ multica/
 │   │   │   ├── chat.go             # Chat session API
 │   │   │   ├── autopilot.go        # Autopilot CRUD + trigger
 │   │   │   ├── skill.go            # Skill 管理
+│   │   │   ├── heartbeat_scheduler.go        # 批量寫入 runtime last_seen_at（效能優化）
+│   │   │   ├── runtime_liveness_store.go     # Redis-backed runtime liveness 快取
+│   │   │   ├── workspace_reserved_slugs.go   # 從 JSON 載入保留 slugs
 │   │   │   └── ...                 # 其他資源 handler
 │   │   │
 │   │   ├── service/                 # 業務邏輯（跨 handler 共用）
@@ -40,6 +44,7 @@ multica/
 │   │   │   ├── identity.go         # CLI 偵測（掃描 PATH）
 │   │   │   ├── local_skills.go     # 本地 skill 同步
 │   │   │   ├── gc.go               # 工作目錄垃圾回收
+│   │   │   ├── diskusage.go        # Disk usage CLI（per-task / per-workspace）
 │   │   │   ├── prompt.go           # 任務 prompt 建構
 │   │   │   ├── health.go           # Daemon health 端點
 │   │   │   ├── repocache/          # Git bare clone 快取
@@ -91,7 +96,7 @@ multica/
 │   │   │   └── messages.go         # 訊息結構
 │   │   └── redact/                 # 敏感資料遮蓋工具
 │   │
-│   └── migrations/                  # SQL migration 檔案（68 個）
+│   └── migrations/                  # SQL migration 檔案（78 個）
 │       ├── 001_init.up.sql         # 初始 schema
 │       └── ...                     # 增量 migration
 │
@@ -143,7 +148,8 @@ multica/
 │   │   ├── navigation/             # NavigationAdapter interface
 │   │   ├── permissions/            # 權限計算邏輯
 │   │   ├── modals/                 # Global modal state
-│   │   └── types/                  # 共用 TypeScript 型別
+│   │   ├── types/                  # 共用 TypeScript 型別
+│   │   └── i18n/                   # i18n 系統（語言切換 + user preference sync）
 │   │
 │   ├── ui/                          # Atomic UI 元件（零業務邏輯）
 │   │   ├── components/ui/          # shadcn 元件（Button、Dialog 等）
@@ -162,7 +168,9 @@ multica/
 │   │   ├── auth/                   # 登入 + Onboarding 頁面
 │   │   ├── inbox/                  # Inbox 頁面
 │   │   ├── settings/               # 設定頁面
-│   │   └── workspace/              # Workspace 管理頁面
+│   │   ├── workspace/              # Workspace 管理頁面
+│   │   ├── i18n/                   # Views i18n 整合（useT hook + resource types）
+│   │   └── locales/                # 翻譯資源（en + zh-Hans，21 namespaces）
 │   │
 │   └── tsconfig/                    # 共用 TypeScript 設定
 │
@@ -205,6 +213,10 @@ multica/
 | 修改 CI 流程 | `.github/workflows/` | `ci.yml`、`release.yml` |
 | 新增 shadcn 元件 | `packages/ui/` | `pnpm ui:add <component>` |
 | 修改 skill 注入路徑 | `server/internal/daemon/execenv/` | `execenv.go`（provider-specific paths） |
+| 新增翻譯字串 | `packages/views/locales/<lang>/<namespace>.json` | 對應 namespace JSON 檔 |
+| 修改 i18n 語言切換邏輯 | `packages/core/i18n/` | `create-i18n.ts`、`user-locale-sync.tsx` |
+| 修改 autopilot 失敗率監控 | `server/cmd/server/autopilot_failure_monitor.go` | `failureMonitorConfig` 結構體 |
+| 查看 runtime 磁碟用量 | `server/internal/daemon/diskusage.go` | `DiskUsageCmd` |
 
 ---
 

@@ -1,6 +1,6 @@
 # API_SURFACE.md — Multica API 與介面參考文件（Part 1/2）
 
-> 資料截止：2026-05-05 | Backend：Go 1.26.1 + Chi v5.2.5 | Base URL：`https://api.multica.ai`  
+> 資料截止：2026-05-09 | Backend：Go 1.26.1 + Chi v5.2.5 | Base URL：`https://api.multica.ai`  
 > 續見 [API_SURFACE_part2.md](./API_SURFACE_part2.md)
 
 ---
@@ -180,10 +180,12 @@ Agent 執行任務時可在 request header 宣告身份（選用）：
 |--------|------|------|
 | `GET/POST/PUT/DELETE` | `/api/labels/...` | 標籤 CRUD |
 | `GET/POST/PUT/DELETE` | `/api/projects/...` | 專案 CRUD |
-| `GET/POST/PUT/DELETE` | `/api/skills/...` | 技能 CRUD |
+| `GET/POST/PUT/DELETE` | `/api/skills/...` | 技能 CRUD（`GET /api/workspaces/:id/skills` 不含 `content` 欄位，PR #2180） |
+| `POST` | `/api/workspaces/:id/skills/import-from-url` | 從 GitHub URL 匯入 skill |
 | `GET/POST/PATCH/DELETE` | `/api/autopilots/...` | Autopilot CRUD |
 | `POST` | `/api/autopilots/{id}/trigger` | 手動觸發 autopilot |
 | `GET/POST/DELETE` | `/api/chat/sessions/...` | Chat session 管理 |
+| `DELETE` | `/api/workspaces/:id/chat/sessions/:sessionId` | 刪除 chat session |
 | `POST` | `/api/chat/sessions/{id}/messages` | 發送 chat 訊息 |
 | `GET` | `/api/inbox` | 收件匣列表 |
 | `POST` | `/api/inbox/mark-all-read` | 全部標為已讀 |
@@ -285,5 +287,28 @@ Content-Type: application/json
 ```
 
 **Response** `200 OK` — `IssueResponse`（不含 `labels` 欄位；客戶端保留快取中的 labels）
+
+---
+
+## 附錄 A. CLI 指令參考
+
+> 指令格式：`multica <subcommand> [flags]`
+
+### 最新新增指令（v0.2+ / PR 參考）
+
+| 指令 | 說明 | PR |
+|------|------|-----|
+| `multica workspace update` | 更新 workspace 設定（名稱、slug 等） | #2191 |
+| `multica daemon disk-usage` | 顯示每個任務 / workspace 的磁碟占用量 | #2267 |
+
+### 新增通用 Flags
+
+| Flag | 適用指令 | 說明 | PR |
+|------|---------|------|-----|
+| `--assignee-id` | `issue create/update` | 直接指定 assignee UUID，避免歧義 | #2114 |
+| `--to-id` | `issue move` 等 | 直接指定目標資源 UUID | #2114 |
+| `--user-id` | `member` 相關 | 直接指定使用者 UUID | #2114 |
+| `--content-file` | `skill create/update` 等 | 從檔案讀取內容（解決 Windows 非 ASCII 問題） | #2247 |
+| `--description-file` | `issue create/update` 等 | 從檔案讀取描述（解決 Windows 非 ASCII 問題） | #2247 |
 
 *續見 [API_SURFACE_part2.md](./API_SURFACE_part2.md)*

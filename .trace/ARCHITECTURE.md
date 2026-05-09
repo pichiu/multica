@@ -1,6 +1,6 @@
 # Multica 系統架構文件
 
-> 最後更新：2026-05-05
+> 最後更新：2026-05-09
 > 本文件基於 codebase 靜態分析產出；未驗證項目標注 ⚠️ 未驗證
 
 ---
@@ -20,6 +20,7 @@ graph TB
         CORE["packages/core<br/>Zustand stores + API client<br/>+ TanStack Query hooks"]
         VIEWS["packages/views<br/>共享業務頁面/元件"]
         UI["packages/ui<br/>Atomic UI 元件（shadcn）"]
+        I18N["packages/core/i18n<br/>+ packages/views/locales<br/>多語言（en + zh-Hans）"]
     end
 
     subgraph "API Server（Go）"
@@ -30,6 +31,9 @@ graph TB
         DAEMONWS["internal/daemonws<br/>Daemon WebSocket Hub"]
         DB["pkg/db/generated<br/>sqlc 型別安全查詢"]
         STORAGE["internal/storage<br/>S3 / Local"]
+        HEARTBEAT["internal/handler<br/>heartbeat_scheduler<br/>批量 runtime last_seen_at"]
+        LIVENESS["internal/handler<br/>runtime_liveness_store<br/>Redis-backed liveness"]
+        AUTOFAIL["cmd/server<br/>autopilot_failure_monitor<br/>高失敗率自動暫停"]
     end
 
     subgraph "資料層（Data Layer）"
@@ -51,8 +55,10 @@ graph TB
 
     WEB --> CORE
     WEB --> VIEWS
+    WEB --> I18N
     DESK --> CORE
     DESK --> VIEWS
+    DESK --> I18N
     VIEWS --> UI
     CORE --> HANDLER
 
@@ -68,6 +74,9 @@ graph TB
     DAEMONWS -->|"WebSocket"| DAEMON
 
     HANDLER --> DB
+    HANDLER --> HEARTBEAT
+    HANDLER --> LIVENESS
+    CMD_SERVER --> AUTOFAIL
     DB --> PG
     REALTIME -->|"Redis Streams（多節點）"| REDIS
 
@@ -102,6 +111,9 @@ graph TB
 | **storage** | 檔案上傳（S3 / Local），介面相同 | `server/internal/storage/` | handler | AWS S3 / 本地磁碟 |
 | **auth** | JWT、PAT、Daemon Token 驗證、CloudFront 簽名 | `server/internal/auth/` | middleware | DB |
 | **daemon** | Runtime 管理、任務輪詢/認領、GC | `server/internal/daemon/` | CLI | server REST API |
+| **heartbeat_scheduler** | 批量更新 runtime `last_seen_at`，避免高頻個別 UPDATE | `server/internal/handler/` | handler | DB |
+| **runtime_liveness_store** | Redis-backed runtime 在線狀態快取，降低 DB 查詢次數 | `server/internal/handler/` | handler | Redis |
+| **autopilot_failure_monitor** | 監控高失敗率 runtime，自動暫停 autopilot 避免迴圈失敗 | `server/cmd/server/` | cmd/server | AutopilotService |
 
 ### 2.2 前端套件
 
@@ -268,6 +280,36 @@ packages/ui (Atomic UI，無業務邏輯)
 - 不同來源的信任等級不同，公約強制開發者思考「這個 UUID 從哪裡來」
 
 **Trade-off**：增加新手學習曲線；需在 code review 中嚴格執行。
+
+---
+
+### DD-7：i18n 架構 — 語言包位於 views/locales，runtime 切換不重載
+
+**決策**：翻譯資源（21 namespaces）集中在 `packages/views/locales/<lang>/`，core 層提供語言切換 API（`packages/core/i18n/`），語言偏好存於 `user.language` DB 欄位，透過 cookie 在 SSR / CSR 間同步。
+
+**取捨**：字串型別安全（TypeScript 型別由 `packages/views/i18n/resources-types.ts` 自動推導）換取 JSON 格式的可讀性與外部貢獻便利性。
+
+**替代方案**：曾考慮 `next-intl`（僅限 Next.js）或 `react-i18next`（需打包 runtime），最終選擇輕量 custom adapter 確保 Electron + Next.js 兩端共用相同 API。
+
+---
+
+### DD-8：Timeline Cursor Pagination — 大型 Issue 效能
+
+**決策**（PR #2128）：Issue timeline 從 offset pagination 改為 keyset cursor pagination（migration 068 新增索引）。
+
+**問題背景**：大型 issue（數百條 comment）的 offset 查詢隨頁數增加線性退化，在生產環境出現明顯凍結（MUL-1968）。
+
+**實作**：cursor 基於 `created_at + id` keyset，支援 "Show older" / "Show newer" 雙向導航，`has_more_before` / `has_more_after` 標記邊界。
+
+---
+
+### DD-9：task_usage_daily — 物化彙整替代即時 GROUP BY
+
+**決策**（PR #2256）：新增 `task_usage_daily` 物化表，以 pg_cron 每小時更新，取代 `ListRuntimeUsage` 對 `task_usage` 原始事件流的 `SUM() GROUP BY DATE(created_at)` 查詢。
+
+**問題背景**：隨 token 使用事件累積，runtimes 列表頁每次載入都對大表做全掃描彙整，DB 負載持續攀升。
+
+**取捨**：最多 1 小時的彙整延遲（可接受），換取 O(days × providers × models) vs O(events) 的查詢複雜度大幅下降。
 
 ---
 

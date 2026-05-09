@@ -281,6 +281,14 @@ Authorization: Bearer mul_<token>
 | `GET` | `/api/runtimes/{runtimeId}/usage/by-hour` | 用量（依小時分組） |
 | `GET` | `/api/runtimes/{runtimeId}/activity` | 取得 runtime 任務活動記錄 |
 
+### 6.4 Daemon 行為變更紀錄
+
+| 行為 | 說明 | PR |
+|------|------|-----|
+| **任務刪除時取消 agent** | Daemon 偵測到 server 端任務被刪除後，立即取消正在執行的 agent | #2107 |
+| **每個 runtime 獨立 poll & heartbeat 排程** | Daemon 不再共用全域定時器；每個 runtime 有獨立的 poll 與 heartbeat 週期，避免跨 runtime 干擾 | #2116 |
+| **404 task-not-found 語意收緊** | 任務輪詢回傳 404 時，Daemon 視為任務已消失並停止相關 agent，不再靜默重試 | #2127 |
+
 ---
 
 ## 7. Error Handling
@@ -323,5 +331,5 @@ Authorization: Bearer mul_<token>
 
 ---
 
-*最後更新：2026-05-05*  
+*最後更新：2026-05-09*  
 *來源：`server/cmd/server/router.go`、`server/pkg/protocol/events.go`、`server/internal/handler/`*

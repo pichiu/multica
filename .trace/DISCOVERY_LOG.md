@@ -1,6 +1,6 @@
 # DISCOVERY_LOG.md — 探索紀錄與待解問題
 
-> 產出日期：2026-05-05
+> 產出日期：2026-05-09
 > 覆蓋範圍：Web 搜尋、程式碼靜態分析、架構 trace（Stage 1–2）
 
 ---
@@ -57,9 +57,9 @@
 - 檔案極簡，但程式碼支援 11 種 AI backend（claude、codex、copilot、opencode、openclaw、hermes、gemini、pi、cursor、kimi、kiro）
 - 每種 backend 的 CLI path 設定、環境變數、模型選項均未文件化
 
-### 落差三：68 個 Migration 無對應 Schema 文件
+### 落差三：78 個 Migration 無對應 Schema 文件
 
-- `server/migrations/` 有 migration 001–067（共 68 檔）涵蓋完整資料模型
+- `server/migrations/` 有 migration 001–078（共 78 檔）涵蓋完整資料模型
 - `docs/` 下無 `schema.md` 或資料模型說明文件
 - 開發者須直接讀 SQL 檔才能理解完整資料結構
 
@@ -121,6 +121,8 @@
 2. **Chat 功能的 Agent 執行路徑**：`chat_session` / `chat_message` 表已存在，但 Chat 中的 agent 對話是否走同一個 `agent_task_queue` 狀態機，還是有獨立的執行路徑？
 
 3. **MCP（Model Context Protocol）整合現況**：社群 Issue #1351 要求 Multica 本身作為 MCP server 被 AI 操控，目前 `mcp_config` 欄位已存在於 agent 設定，但實際 MCP 支援程度（僅允許 agent 連接外部 MCP servers，還是 Multica 本身也可作為 MCP server）需要進一步確認。
+
+   > 2026-05-09 更新：Chat session 現已支援刪除（PR #2115），confirm 走獨立路徑
 
 4. **`workspace.settings` JSONB 欄位的完整 schema**：此欄位用於 workspace 級別功能開關，但無文件說明支援哪些 key，在不同功能的 handler 中分散使用。
 
@@ -235,3 +237,35 @@
 ---
 
 *本文件由 Stage 1（Web 搜尋）+ Stage 2（程式碼 trace）產出，供後續文件撰寫與架構決策參考。*
+
+---
+
+## 8. 增量更新記錄
+
+### 2026-05-09 — v0.2.26～v0.2.28 重大變更（79 commits，daf0e93..bda475c）
+
+**新功能：**
+- **i18n 全面上線**：21 namespaces，支援 en + zh-Hans（PR #1853）；`user.language` DB 欄位新增
+- **Autopilot 高失敗率自動暫停**（PR #2136）：可設定閾值，持續高失敗率的 autopilot 自動暫停
+- **Timeline cursor pagination**（PR #2128）：解決大型 issue 頁面卡頓問題（替換 offset pagination）
+- **Chat session 刪除**（PR #2115）：支援刪除 chat session
+- **Skill import from GitHub URL**（PR #2209）：直接從 GitHub 倉庫 URL 匯入 skill
+- **redis-backed runtime liveness**（PR #2121）：runtime 存活狀態以 Redis 快取，DB fallback
+- **heartbeat 批量寫入**（PR #2213）：runtime `last_seen_at` 批次寫入，降低 DB 寫入壓力
+- **task_usage_daily 日彙整表**（PR #2256）：materialized rollup + pg_cron，解決 ListRuntimeUsage 效能問題
+- **Daemon GC 擴充**（PR #2260）：GC 現清理 chat / autopilot / quick-create tasks
+- **multica workspace update** CLI 命令（PR #2191）
+- **disk-usage CLI**（PR #2267）：顯示 per-task / per-workspace 磁碟使用量
+- **Desktop runtime 自架設定**（PR #2012）：desktop app 可載入 self-host runtime 設定
+- **系統通知開關**（PR #2132）：Settings 中新增通知偏好設定
+
+**重構 / 優化：**
+- `reserved-slugs` 從 Go hardcode 移至 `reserved_slugs.json`（backend + frontend 共用）
+- openclaw version gate：< 2026.5.5 → block 並顯示升級提示（PR #2181）
+- Settings Appearance tab 更名為 Preferences，URL 保留 tab 狀態（PR #2131）
+- Chat session 清單整合為單一 dropdown（PR #2220）
+- ESLint 正式加入 CI pipeline（PR #2129）
+
+**已解決技術債：**
+- Timeline offset pagination 問題（已換為 cursor pagination，PR #2128）
+- `agent_task_queue.last_heartbeat_at` 欄位已刪除（migration 069），改由 heartbeat_scheduler 批量處理

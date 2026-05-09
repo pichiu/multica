@@ -1,6 +1,6 @@
 # DATA_MODEL.md — Multica 資料模型文件
 
-> 資料來源：`server/migrations/001_init.up.sql`～`067_*.up.sql`、`server/pkg/db/generated/`、`.trace/_context/`
+> 資料來源：`server/migrations/001_init.up.sql`～`078_*.up.sql`、`server/pkg/db/generated/`、`.trace/_context/`
 
 ---
 
@@ -18,6 +18,7 @@
 | `onboarding_state` | JSONB | onboarding 進度（`051`）|
 | `onboarded_at` | TIMESTAMPTZ | 完成 onboarding 時間（`050`）|
 | `starter_content_state` | JSONB | 新手內容狀態（`054`）|
+| `language` | TEXT | 用戶語言偏好（`'en'` / `'zh-Hans'`，`060`）|
 | `created_at` / `updated_at` | TIMESTAMPTZ | 時間戳記 |
 
 #### `workspace`（`001_init.up.sql`）
@@ -142,7 +143,6 @@
 | `work_dir` | TEXT | 本機工作目錄 |
 | `force_fresh_session` | BOOLEAN | 強制新 session（`066`）|
 | `lease_expires_at` | TIMESTAMPTZ | 租約過期時間（`055`）|
-| `last_heartbeat_at` | TIMESTAMPTZ | 任務心跳（`055`）|
 | `trigger_summary` | TEXT | 觸發摘要（`061`）|
 | `dispatched_at` / `started_at` / `completed_at` | TIMESTAMPTZ | 各階段時間戳記 |
 | `result` | JSONB | 執行結果 |
@@ -153,6 +153,25 @@
 
 #### `task_usage`（`032_task_usage.up.sql`）
 Token 用量追蹤。含 `task_id`、`input_tokens`、`output_tokens`、`model`。
+
+#### `task_usage_daily`（`073_task_usage_daily_rollup.up.sql`）
+`task_usage` 的每日物化彙總，用於降低 ListRuntimeUsage 查詢對 DB 的負載。由 pg_cron 任務（`077`）每小時維護。
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `bucket_date` | DATE | 彙總日期（PK 組合之一）|
+| `workspace_id` | UUID | 外鍵→`workspace`（PK 組合之一）|
+| `runtime_id` | UUID | 外鍵→`agent_runtime`（PK 組合之一）|
+| `provider` | TEXT | AI CLI 類型（PK 組合之一）|
+| `model` | TEXT | 使用的模型（PK 組合之一）|
+| `input_tokens` | BIGINT | 輸入 token 數 |
+| `output_tokens` | BIGINT | 輸出 token 數 |
+| `cache_read_tokens` | BIGINT | 快取讀取 token 數 |
+| `cache_write_tokens` | BIGINT | 快取寫入 token 數 |
+| `task_count` | BIGINT | 任務數量 |
+| `updated_at` | TIMESTAMPTZ | 最後更新時間 |
+
+主鍵：`(bucket_date, workspace_id, runtime_id, provider, model)`
 
 ---
 
@@ -574,7 +593,7 @@ Migration 由自訂 Go tool 管理（`server/internal/migrations/`），非第�
 
 **命名規則**：`{序號}_{描述}.up.sql` / `{序號}_{描述}.down.sql`
 
-- 序號範圍：`001`～`067`（共 68 個 migration，但因同一序號可有多個檔案，實際檔案數 > 68）
+- 序號範圍：`001`～`078`（但因同一序號可有多個檔案，實際檔案數 > 78）
 - 同一序號多個檔案（如 `050_agent_model.up.sql`、`050_add_onboarded_at_to_users.up.sql`）代表同批次的平行改動
 
 **執行指令**：
@@ -600,10 +619,13 @@ make db-reset       # 清除並重建（僅本機）
 | `065` | `project_resource`（多型態外部資源連結）|
 | `066` | `force_fresh_session`（手動重跑強制新 session）|
 | `067` | `idx_agent_task_queue_claim_candidates` 部分索引（claim 效能優化）|
+| `069` | 移除 `agent_task_queue.last_heartbeat_at`（改以 `lease_expires_at` + sweeper 機制取代）|
+| `073` | `task_usage_daily`（每日 token 用量彙總表）|
+| `077` | pg_cron 任務：每小時執行 `task_usage_daily` rollup |
 
 ### 6.3 索引策略
 
-關鍵效能索引（`067` 最新）：
+關鍵效能索引（`067` 起，含後續新增）：
 ```sql
 -- Daemon claim 熱路徑（僅索引 queued 狀態，大幅縮小索引大小）
 CREATE INDEX CONCURRENTLY idx_agent_task_queue_claim_candidates
@@ -615,5 +637,5 @@ CREATE INDEX CONCURRENTLY idx_agent_task_queue_claim_candidates
 
 ---
 
-*文件生成時間：2026-05-05*
-*資料來源版本：migrations 001～067*
+*文件生成時間：2026-05-09*
+*資料來源版本：migrations 001～078*

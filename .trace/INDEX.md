@@ -16,6 +16,7 @@ Multica 是一個開源的 **managed agents 平台**，讓 AI coding agent（Cla
 | 資料庫 | PostgreSQL | 17 (pgvector) | 主資料庫（sqlc 型別安全查詢） |
 | Cache / Pub-Sub | Redis | — | 多節點 relay（可選） |
 | 排程 | robfig/cron | v3 | Autopilot 定時任務 |
+| 排程（DB） | pg_cron | — | task_usage_daily 每小時彙整任務 |
 | Email | Resend | — | OTP 驗證碼 |
 | 檔案儲存 | AWS S3 / 本地 | — | 附件上傳 |
 | Frontend | Next.js App Router | — | 主 Web 應用 |
@@ -24,6 +25,7 @@ Multica 是一個開源的 **managed agents 平台**，讓 AI coding agent（Cla
 | Client State | Zustand | 5.x | UI 狀態管理 |
 | UI Components | shadcn/ui (Base UI) | — | Atomic UI 元件庫 |
 | CSS | Tailwind CSS | v4 | 樣式系統（semantic tokens） |
+| i18n | i18next (via packages/core/i18n/) | — | 多語言支援（en + zh-Hans） |
 | Monorepo | pnpm workspaces + Turborepo | — | 前端 monorepo 管理 |
 | Testing (TS) | Vitest | 4.x | 單元 / 整合測試 |
 | Testing (E2E) | Playwright | 1.58.x | 端到端測試 |
@@ -70,6 +72,8 @@ multica setup         # 一鍵配置（連線 Cloud + 登入 + 啟動 daemon）
 multica daemon start  # 啟動本地 daemon
 multica issue list    # 列出 issues
 multica login         # 瀏覽器 OAuth 登入
+multica workspace update  # 更新 workspace 設定
+multica daemon disk-usage # 查看 daemon 磁碟使用量
 ```
 
 ---
@@ -112,3 +116,5 @@ multica login         # 瀏覽器 OAuth 登入
 | **Issue Prefix** | workspace 的 issue 前綴（e.g. `MUL`），issue 識別符 = `MUL-123` |
 | **execenv** | 每個任務的隔離工作目錄，包含 TASK.md、skill 檔案、context |
 | **Worktree** | git worktree，每個功能分支的獨立 checkout，有自己的 DB 和端口 |
+| **i18n Namespace** | 翻譯資源的分類單元（21 個：agents、auth、issues 等），每個 namespace 對應一個 JSON 檔，存放於 `packages/views/locales/<lang>/` |
+| **task_usage_daily** | `task_usage` 的日彙整物化表，以 pg_cron 每小時更新，用於 ListRuntimeUsage 查詢效能優化 |
